@@ -9,14 +9,13 @@ jobs:
     timeout-minutes: 360
 
     steps:
-
     # ===============================
-    # Enable RDP + Fix All RDP Errors
+    # Enable RDP (FIXED)
     # ===============================
     - name: Configure Core RDP Settings
       shell: powershell
       run: |
-        Write-Host "Enabling Remote Desktop..."
+        Write-Host "Enable RDP"
 
         Set-ItemProperty `
           -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
@@ -24,24 +23,14 @@ jobs:
           -Value 0 `
           -Force
 
-        Write-Host "Disabling NLA..."
-
         Set-ItemProperty `
           -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" `
           -Name "UserAuthentication" `
           -Value 0 `
           -Force
 
-        Set-ItemProperty `
-          -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" `
-          -Name "SecurityLayer" `
-          -Value 0 `
-          -Force
-
-        Write-Host "Opening firewall port 3389..."
-
-        netsh advfirewall firewall delete rule name="RDP-Tailscale" 2>$null
-        netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
+        netsh advfirewall firewall delete rule name="RDP" 2>$null
+        netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
 
         Restart-Service TermService -Force
 
@@ -51,28 +40,19 @@ jobs:
     - name: Create RDP User
       shell: powershell
       run: |
-        $username = "rdpuser"
-        $password = "P@ssw0rd123!"
-
-        net user $username $password /add
-        net localgroup administrators $username /add
-        net localgroup "Remote Desktop Users" $username /add
-
-        Write-Host "RDP User Created:"
-        Write-Host "Username: $username"
-        Write-Host "Password: $password"
+        net user rdpuser P@ssw0rd123! /add
+        net localgroup administrators rdpuser /add
+        net localgroup "Remote Desktop Users" rdpuser /add
 
     # ===============================
-    # Install Tailscale
+    # Install Tailscale (FIXED)
     # ===============================
     - name: Install Tailscale
       shell: powershell
       run: |
-        Invoke-WebRequest `
-          -Uri "https://pkgs.tailscale.com/stable/tailscale-setup.exe" `
-          -OutFile "tailscale.exe"
-
-        Start-Process "tailscale.exe" -ArgumentList "/quiet" -Wait
+        winget install --id Tailscale.Tailscale -e `
+        --accept-source-agreements `
+        --accept-package-agreements
 
     # ===============================
     # Start Tailscale
@@ -81,13 +61,12 @@ jobs:
       shell: powershell
       run: |
         & "C:\Program Files\Tailscale\tailscale.exe" up --accept-dns=false
-
         & "C:\Program Files\Tailscale\tailscale.exe" ip -4
 
     # ===============================
-    # Verify RDP Port
+    # Verify RDP
     # ===============================
-    - name: Verify RDP
+    - name: Verify RDP Port
       shell: powershell
       run: |
         netstat -an | findstr 3389
@@ -99,6 +78,6 @@ jobs:
       shell: powershell
       run: |
         while ($true) {
-          Write-Host "RDP is running..."
-          Start-Sleep -Seconds 300
+          Write-Host "RDP is alive..."
+          Start-Sleep 300
         }
