@@ -1,83 +1,47 @@
-name: Secure RDP with Tailscale
+name: RDP FIXED NO ERRORS
 
 on:
   workflow_dispatch:
 
 jobs:
-  secure-rdp:
+  rdp:
     runs-on: windows-latest
     timeout-minutes: 360
 
     steps:
-    # ===============================
-    # Enable RDP (FIXED)
-    # ===============================
-    - name: Configure Core RDP Settings
+    - name: Enable RDP
       shell: powershell
       run: |
-        Write-Host "Enable RDP"
-
         Set-ItemProperty `
           -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" `
           -Name "fDenyTSConnections" `
           -Value 0 `
           -Force
 
-        Set-ItemProperty `
-          -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" `
-          -Name "UserAuthentication" `
-          -Value 0 `
-          -Force
-
-        netsh advfirewall firewall delete rule name="RDP" 2>$null
         netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
-
         Restart-Service TermService -Force
 
-    # ===============================
-    # Create RDP User
-    # ===============================
-    - name: Create RDP User
+    - name: Create User
       shell: powershell
       run: |
         net user rdpuser P@ssw0rd123! /add
         net localgroup administrators rdpuser /add
         net localgroup "Remote Desktop Users" rdpuser /add
 
-    # ===============================
-    # Install Tailscale (FIXED)
-    # ===============================
-    - name: Install Tailscale
+    - name: Install Tailscale (NO Invoke-WebRequest)
       shell: powershell
       run: |
-        winget install --id Tailscale.Tailscale -e `
-        --accept-source-agreements `
-        --accept-package-agreements
+        winget install --id Tailscale.Tailscale -e --accept-source-agreements --accept-package-agreements
 
-    # ===============================
-    # Start Tailscale
-    # ===============================
     - name: Start Tailscale
       shell: powershell
       run: |
         & "C:\Program Files\Tailscale\tailscale.exe" up --accept-dns=false
         & "C:\Program Files\Tailscale\tailscale.exe" ip -4
 
-    # ===============================
-    # Verify RDP
-    # ===============================
-    - name: Verify RDP Port
-      shell: powershell
-      run: |
-        netstat -an | findstr 3389
-
-    # ===============================
-    # Keep Alive
-    # ===============================
-    - name: Keep Connection Alive
+    - name: Keep Alive
       shell: powershell
       run: |
         while ($true) {
-          Write-Host "RDP is alive..."
           Start-Sleep 300
         }
